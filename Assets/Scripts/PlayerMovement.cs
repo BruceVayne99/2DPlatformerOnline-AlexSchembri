@@ -2,20 +2,26 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
+
 public class PlayerMovement : MonoBehaviour
 {
-    public float MoveSpeed = 10f;
-    public float JumpSpeed = 500f;
-
-    private Rigidbody2D _rigidbody;
-    private Animator _animator;
-    private SpriteRenderer _sprite;
-
-    private bool _isGrounded = false;
 
     #region Input Variables
     private float _XInput;
     private bool _isJumpPressed = false;
+    public float MoveSpeed = 10f;
+    public float JumpSpeed = 50f;
+
+    private Rigidbody2D _rigidbody;
+    private Animator _animator;
+    private SpriteRenderer _sprite;
+    private bool _isGrounded = false;
+
+    private float coyoteTime = 0.1f;
+    private float coyoteTimeCounter;
+
+    private float jumpBufferTime = 0.2f;
+    private float jumpBufferCounter;
     #endregion
 
     void Start()
@@ -51,6 +57,23 @@ public class PlayerMovement : MonoBehaviour
         {
             _isJumpPressed = true;
         }
+
+        if (_isGrounded)
+        {
+            coyoteTimeCounter = coyoteTime;
+        }
+        else
+        {
+            coyoteTimeCounter -= Time.deltaTime;
+        }
+        if (_isJumpPressed)
+        {
+            jumpBufferCounter = jumpBufferTime;
+        }
+        else
+        {
+            jumpBufferCounter -= Time.deltaTime;
+        }
     }
     private void FixedUpdate()
     {
@@ -58,26 +81,51 @@ public class PlayerMovement : MonoBehaviour
         _rigidbody.velocity = new Vector2(_XInput * MoveSpeed * Time.fixedDeltaTime, _rigidbody.velocity.y);
         _XInput *= MoveSpeed * Time.deltaTime;
 
-        if (_isJumpPressed && _isGrounded)
+        if (jumpBufferCounter > 0f && coyoteTimeCounter > 0f)
         {
-            _rigidbody.AddForce(Vector2.up * JumpSpeed, ForceMode2D.Impulse);
+            //_rigidbody.AddForce(Vector2.up * JumpSpeed, ForceMode2D.Impulse);
+            _rigidbody.velocity = new Vector2(_rigidbody.velocity.x, JumpSpeed);
+            jumpBufferCounter = 0f;
         }
+
+        if (_isJumpPressed && _rigidbody.velocity.y > 0f)
+        {
+            _rigidbody.velocity = new Vector2(_rigidbody.velocity.x, _rigidbody.velocity.y * 0.5f);
+            coyoteTimeCounter = 0f;
+        }
+
         _isJumpPressed = false;
+
+
     }
 
-    private void OnCollisionStay2D(Collision2D other)
+    private void OnCollisionStay2D(Collision2D collision)
     {
-        if (other.transform.tag == "Ground")
+        if (collision.transform.tag == "Ground")
         {
-            _isGrounded = true;
+            Vector2 collisionPoint = collision.contacts[0].point;
+            Vector2 collisionDirection = collisionPoint - (Vector2)transform.position;
+            collisionDirection.Normalize();
+            float angle = Vector2.Angle(collisionDirection, Vector2.down);
+
+            if (angle < 45f)
+            {
+                _isGrounded = true;
+            }
+            else
+            {
+                _isGrounded = false;
+            }
+
         }
     }
 
-    private void OnCollisionExit2D(Collision2D other)
+    private void OnCollisionExit2D(Collision2D collision)
     {
-        if (other.transform.tag == "Ground")
+        if (collision.transform.tag == "Ground")
         {
             _isGrounded = false;
         }
+
     }
 }
